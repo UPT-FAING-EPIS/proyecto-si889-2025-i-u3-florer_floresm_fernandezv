@@ -1,0 +1,101 @@
+.er-diagram-container {
+  width: 100%;
+  margin: 20px 0;
+}
+
+.er-diagram-header {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.er-diagram-header h3 {
+  color: #2c3e50;
+  margin-bottom: 5px;
+}
+
+.er-diagram-header p {
+  color: #7f8c8d;
+  font-size: 14px;
+}
+
+.er-diagram {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+/* Estilos para los nodos de tabla */
+.table-node {
+  background: white;
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  min-width: 200px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-header {
+  background: #3498db;
+  color: white;
+  padding: 8px 12px;
+  font-weight: bold;
+  border-radius: 6px 6px 0 0;
+  text-align: center;
+}
+
+.table-columns {
+  padding: 0;
+}
+
+.column {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid #ecf0f1;
+  font-size: 12px;
+}
+
+.column:last-child {
+  border-bottom: none;
+}
+
+.column.primary-key {
+  background-color: #fff3cd;
+  border-left: 3px solid #ffc107;
+}
+
+.column.foreign-key {
+  background-color: #d1ecf1;
+  border-left: 3px solid #17a2b8;
+}
+
+.column-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.column-type {
+  color: #7f8c8d;
+  font-size: 11px;
+}
+
+.pk-indicator, .fk-indicator {
+  font-size: 10px;
+}
+
+/* Estilos para ReactFlow */
+.react-flow__controls {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.react-flow__minimap {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.react-flow__attribution {
+  display: none;
+}

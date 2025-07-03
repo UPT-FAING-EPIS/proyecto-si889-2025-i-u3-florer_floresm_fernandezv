@@ -1,0 +1,155 @@
+name: 🚀 Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., v1.2.3)'
+        required: true
+        default: 'v1.0.0'
+      release_notes:
+        description: 'Release notes'
+        required: false
+        default: 'Nueva versión del Data Dictionary Generator'
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🏷️ Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "RELEASE_NOTES=${{ github.event.inputs.release_notes }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "RELEASE_NOTES=Release ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "COMMIT_SHA=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT      # 🎨 FRONTEND BUILD
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 21
+
+      - name: 📦 Install frontend dependencies
+        working-directory: ./DictApp/DataDicGen.Frontend
+        run: npm install --frozen-lockfile
+
+      - name: 🏗️ Build frontend
+        working-directory: ./DictApp/DataDicGen.Frontend
+        run: |
+          echo "Building frontend for release ${{ steps.version.outputs.VERSION }}"
+          npm run build
+
+      - name: 📁 Create frontend artifact
+        working-directory: ./DictApp/DataDicGen.Frontend
+        run: |
+          cd dist
+          zip -r ../../../datadicgen-frontend-${{ steps.version.outputs.VERSION }}.zip .
+
+      # ⚙️ BACKEND BUILD
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: 📦 Restore backend dependencies
+        working-directory: ./DictApp
+        run: dotnet restore DataDictGen.sln
+
+      - name: 🏗️ Build backend
+        working-directory: ./DictApp
+        run: |
+          echo "Building backend for release ${{ steps.version.outputs.VERSION }}"
+          dotnet build DataDictGen.sln -c Release --no-restore
+
+      - name: 📦 Publish backend
+        working-directory: ./DictApp/DataDicGen.WebAPI
+        run: |
+          dotnet publish -c Release -o publish --no-build
+          echo "${{ steps.version.outputs.VERSION }}" > publish/VERSION
+          echo "${{ steps.version.outputs.BUILD_DATE }}" > publish/BUILD_DATE
+
+      - name: 📁 Create backend artifact
+        working-directory: ./DictApp/DataDicGen.WebAPI
+        run: |
+          cd publish
+          zip -r ../../../datadicgen-backend-${{ steps.version.outputs.VERSION }}.zip .
+
+      # 📋 GENERATE CHANGELOG
+      - name: 📝 Generate changelog
+        id: changelog
+        run: |
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "## 🚀 Data Dictionary Generator ${{ steps.version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 📅 Información de la Release" >> $GITHUB_OUTPUT
+          echo "- **Versión:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+          echo "- **Fecha:** ${{ steps.version.outputs.BUILD_DATE }}" >> $GITHUB_OUTPUT
+          echo "- **Commit:** ${{ steps.version.outputs.COMMIT_SHA }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 📦 Artefactos incluidos" >> $GITHUB_OUTPUT
+          echo "- 🎨 **Frontend** (React + Vite)" >> $GITHUB_OUTPUT
+          echo "- ⚙️ **Backend API** (.NET 8)" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 🔧 Tecnologías" >> $GITHUB_OUTPUT
+          echo "- **Frontend:** React, TypeScript, Vite" >> $GITHUB_OUTPUT
+          echo "- **Backend:** .NET 8, Entity Framework, OpenAI API" >> $GITHUB_OUTPUT
+          echo "- **Base de datos:** SQL Server" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 📖 Notas de la release" >> $GITHUB_OUTPUT
+          echo "${{ steps.version.outputs.RELEASE_NOTES }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 🚀 Instrucciones de instalación" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "1. Descarga \`datadicgen-backend-${{ steps.version.outputs.VERSION }}.zip\`" >> $GITHUB_OUTPUT
+          echo "2. Descarga \`datadicgen-frontend-${{ steps.version.outputs.VERSION }}.zip\`" >> $GITHUB_OUTPUT
+          echo "3. Configura las variables de entorno en \`appsettings.json\`" >> $GITHUB_OUTPUT
+          echo "4. Ejecuta el backend con \`dotnet DataDicGen.WebAPI.dll\`" >> $GITHUB_OUTPUT
+          echo "5. Sirve el frontend con un servidor web" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "---" >> $GITHUB_OUTPUT
+          echo "**Desarrollado por:** Flores Melendez, Flores Ramos, Fernandez Villanueva" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # 🎉 CREATE RELEASE
+      - name: 🎉 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: "🚀 Data Dictionary Generator ${{ steps.version.outputs.VERSION }}"
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          draft: false
+          prerelease: false
+          files: |
+            datadicgen-frontend-${{ steps.version.outputs.VERSION }}.zip
+            datadicgen-backend-${{ steps.version.outputs.VERSION }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 📊 SUMMARY
+      - name: 📊 Release Summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Release Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Date:** ${{ steps.version.outputs.BUILD_DATE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ steps.version.outputs.COMMIT_SHA }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts Generated" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend ZIP" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend ZIP" >> $GITHUB_STEP_SUMMARY

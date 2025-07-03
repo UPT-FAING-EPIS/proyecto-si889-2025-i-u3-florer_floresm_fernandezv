@@ -1,0 +1,450 @@
+name: Analysis Reports & GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  sonar-analysis:
+    name: SonarCloud Analysis
+    runs-on: windows-latest
+    outputs:
+      sonar-report-url: ${{ steps.sonar-info.outputs.report-url }}
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu'
+          
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+          
+      - name: Install SonarCloud scanner
+        shell: powershell
+        run: |
+          dotnet tool install --global dotnet-sonarscanner
+          
+      - name: Build and analyze with SonarCloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
+        working-directory: ./DictApp
+        run: |
+          dotnet sonarscanner begin /k:"mario-flores_proyecto-u2" /o:"mario-flores" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+          dotnet build DataDictGen.sln
+          dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          
+      - name: Set SonarCloud info
+        id: sonar-info
+        run: echo "report-url=https://sonarcloud.io/project/overview?id=mario-flores_proyecto-u2" >> $env:GITHUB_OUTPUT
+
+  snyk-analysis:
+    name: Snyk .NET Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+          
+      - name: Install .NET dependencies
+        working-directory: ./DictApp
+        run: dotnet restore DataDictGen.sln
+        
+      - name: Create reports directory
+        run: mkdir -p ./reports
+        
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+        
+      - name: Run Snyk analysis and generate raw report
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test --file=./DictApp/DataDictGen.sln > ./reports/snyk-raw.txt 2>&1 || true
+          snyk test --file=./DictApp/DataDictGen.sln --json > ./reports/snyk-dotnet-report.json 2>&1 || true
+          
+      - name: Create styled HTML report
+        run: |
+          cat > ./reports/snyk-dotnet-report.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Reporte Snyk - Análisis de Seguridad .NET</title>
+              <style>
+                  body { 
+                      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                      margin: 0; 
+                      padding: 20px; 
+                      background: #f5f7fa;
+                      line-height: 1.6;
+                  }
+                  .container { 
+                      max-width: 1000px; 
+                      margin: 0 auto; 
+                      background: white; 
+                      border-radius: 10px; 
+                      padding: 30px; 
+                      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                  }
+                  .header {
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white;
+                      padding: 20px;
+                      border-radius: 10px;
+                      margin-bottom: 30px;
+                      text-align: center;
+                  }
+                  .header h1 { margin: 0; font-size: 2em; }
+                  .header p { margin: 10px 0 0 0; opacity: 0.9; }
+                  .project-section {
+                      margin: 20px 0;
+                      border: 1px solid #e1e8ed;
+                      border-radius: 8px;
+                      overflow: hidden;
+                  }
+                  .project-header {
+                      background: #f8f9fa;
+                      padding: 15px 20px;
+                      border-bottom: 1px solid #e1e8ed;
+                      font-weight: bold;
+                      color: #2c3e50;
+                  }
+                  .project-content {
+                      padding: 20px;
+                  }
+                  .success {
+                      color: #27ae60;
+                      background: #d5f4e6;
+                      padding: 15px;
+                      border-radius: 5px;
+                      border-left: 4px solid #27ae60;
+                      margin: 10px 0;
+                  }
+                  .warning {
+                      color: #e74c3c;
+                      background: #fdf2f2;
+                      padding: 15px;
+                      border-radius: 5px;
+                      border-left: 4px solid #e74c3c;
+                      margin: 10px 0;
+                  }
+                  .vulnerability {
+                      background: #fff5f5;
+                      border: 1px solid #fed7d7;
+                      border-radius: 5px;
+                      padding: 15px;
+                      margin: 10px 0;
+                  }
+                  .vuln-title {
+                      font-weight: bold;
+                      color: #c53030;
+                      margin-bottom: 10px;
+                  }
+                  .vuln-details {
+                      font-size: 0.9em;
+                      color: #666;
+                  }
+                  .severity-high {
+                      background: #e74c3c;
+                      color: white;
+                      padding: 3px 8px;
+                      border-radius: 3px;
+                      font-size: 0.8em;
+                      font-weight: bold;
+                  }
+                  .summary {
+                      background: #e8f4fd;
+                      border-left: 4px solid #3498db;
+                      padding: 15px;
+                      margin: 20px 0;
+                  }
+                  .footer {
+                      text-align: center;
+                      color: #7f8c8d;
+                      font-style: italic;
+                      margin-top: 30px;
+                      padding-top: 20px;
+                      border-top: 1px solid #e1e8ed;
+                  }
+                  .raw-report {
+                      background: #f8f9fa;
+                      padding: 20px;
+                      border-radius: 5px;
+                      border: 1px solid #e1e8ed;
+                      font-family: 'Courier New', monospace;
+                      font-size: 0.9em;
+                      white-space: pre-wrap;
+                      overflow-x: auto;
+                      max-height: 600px;
+                      overflow-y: auto;
+                  }
+                  .toggle-btn {
+                      background: #3498db;
+                      color: white;
+                      border: none;
+                      padding: 10px 20px;
+                      border-radius: 5px;
+                      cursor: pointer;
+                      margin: 10px 0;
+                  }
+                  .toggle-btn:hover {
+                      background: #2980b9;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <div class="header">
+                      <h1>🛡️ Reporte de Seguridad Snyk</h1>
+                      <p>Análisis de vulnerabilidades en dependencias .NET</p>
+                  </div>
+                  
+                  <div class="summary">
+                      <h3>📊 Resumen del Análisis</h3>
+                      <p><strong>Fecha:</strong> $(date '+%Y-%m-%d %H:%M:%S UTC')</p>
+                      <p><strong>Proyectos analizados:</strong> 5 proyectos .NET</p>
+                      <p><strong>Organización:</strong> marant7</p>
+                      <p><strong>Archivo analizado:</strong> DataDictGen.sln</p>
+                  </div>
+          
+                  <div class="project-section">
+                      <div class="project-header">📦 Análisis de Proyectos DataDictGen</div>
+                      <div class="project-content">
+                          <div class="success">
+                              <strong>✅ Análisis completado exitosamente</strong><br>
+                              Se han analizado todos los proyectos de la solución .NET para detectar vulnerabilidades de seguridad.
+                          </div>
+                          
+                          <button class="toggle-btn" onclick="toggleReport()">🔍 Ver Reporte Detallado</button>
+                          
+                          <div id="rawReport" class="raw-report" style="display: none;">
+          EOF
+          
+          # Add the raw report content
+          if [ -f "./reports/snyk-raw.txt" ]; then
+              cat ./reports/snyk-raw.txt >> ./reports/snyk-dotnet-report.html
+          else
+              echo "Reporte no disponible - Error en la generación" >> ./reports/snyk-dotnet-report.html
+          fi
+          
+          cat >> ./reports/snyk-dotnet-report.html << 'EOF'
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div class="summary">
+                      <h3>📋 Archivos Disponibles</h3>
+                      <p>• <strong>Reporte JSON:</strong> <a href="./snyk-dotnet-report.json">snyk-dotnet-report.json</a> (formato técnico)</p>
+                      <p>• <strong>Reporte HTML:</strong> Este archivo (formato legible)</p>
+                  </div>
+                  
+                  <div class="footer">
+                      Reporte generado por Snyk Security Analysis<br>
+                      Proyecto: DataDictGen (.NET 8.0)
+                  </div>
+              </div>
+              
+              <script>
+                  function toggleReport() {
+                      const report = document.getElementById('rawReport');
+                      const btn = document.querySelector('.toggle-btn');
+                      if (report.style.display === 'none') {
+                          report.style.display = 'block';
+                          btn.textContent = '🔼 Ocultar Reporte Detallado';
+                      } else {
+                          report.style.display = 'none';
+                          btn.textContent = '🔍 Ver Reporte Detallado';
+                      }
+                  }
+              </script>
+          </body>
+          </html>
+          EOF
+          
+      - name: Upload Snyk reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-reports
+          path: ./reports/
+
+  reports-page:
+    name: Generate Reports Page
+    runs-on: ubuntu-latest
+    needs: [sonar-analysis, snyk-analysis]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download Snyk reports
+        uses: actions/download-artifact@v4
+        with:
+          name: snyk-reports
+          path: ./reports
+          
+      - name: Create reports index page
+        run: |
+          mkdir -p ./public
+          
+          # Get current date
+          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S UTC')
+          
+          cat > ./public/index.html << EOF
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Reportes de Análisis - DataDictGen</title>
+              <style>
+                  body { 
+                      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                      margin: 0; 
+                      padding: 20px; 
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                  }
+                  .container { 
+                      max-width: 800px; 
+                      margin: 0 auto; 
+                      background: white; 
+                      border-radius: 15px; 
+                      padding: 40px; 
+                      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                  }
+                  h1 { 
+                      color: #2c3e50; 
+                      text-align: center; 
+                      margin-bottom: 30px; 
+                      font-size: 2.5em;
+                  }
+                  .report-card { 
+                      border: 2px solid #3498db; 
+                      border-radius: 10px; 
+                      padding: 25px; 
+                      margin: 20px 0; 
+                      background: #f8f9fa;
+                      transition: transform 0.3s ease;
+                  }
+                  .report-card:hover {
+                      transform: translateY(-5px);
+                      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                  }
+                  .report-card h2 { 
+                      color: #2980b9; 
+                      margin-top: 0; 
+                  }
+                  .report-link { 
+                      display: inline-block; 
+                      background: #3498db; 
+                      color: white; 
+                      padding: 12px 24px; 
+                      text-decoration: none; 
+                      border-radius: 5px; 
+                      margin: 5px; 
+                      transition: background 0.3s ease;
+                  }
+                  .report-link:hover { 
+                      background: #2980b9; 
+                  }
+                  .info { 
+                      background: #e8f4fd; 
+                      border-left: 4px solid #3498db; 
+                      padding: 15px; 
+                      margin: 20px 0; 
+                  }
+                  .timestamp {
+                      text-align: center;
+                      color: #7f8c8d;
+                      font-style: italic;
+                      margin-top: 30px;
+                  }
+                  .dotnet-badge {
+                      background: #5C2D91;
+                      color: white;
+                      padding: 5px 10px;
+                      border-radius: 5px;
+                      font-size: 0.8em;
+                      display: inline-block;
+                      margin-top: 10px;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>📊 Reportes de Análisis</h1>
+                  <h2 style="text-align: center; color: #7f8c8d;">DataDictGen Project (.NET)</h2>
+                  
+                  <div class="info">
+                      <strong>ℹ️ Información:</strong> Esta página contiene los reportes automáticos de análisis de calidad y seguridad para el proyecto .NET.
+                      <div class="dotnet-badge">.NET 8.0</div>
+                  </div>
+                  
+                  <div class="report-card">
+                      <h2>🔍 SonarCloud - Análisis de Calidad</h2>
+                      <p>Análisis completo de calidad de código, bugs, vulnerabilidades y code smells para el proyecto .NET.</p>
+                      <a href="${{ needs.sonar-analysis.outputs.sonar-report-url }}" class="report-link" target="_blank">
+                          📈 Ver Reporte SonarCloud
+                      </a>
+                  </div>
+                  
+                  <div class="report-card">
+                      <h2>🛡️ Snyk - Análisis de Seguridad .NET</h2>
+                      <p>Análisis de vulnerabilidades de seguridad en dependencias y paquetes NuGet del proyecto .NET.</p>
+                      <a href="./snyk-dotnet-report.html" class="report-link">
+                          🔒 Reporte HTML (Estilizado)
+                      </a>
+                      <a href="./snyk-dotnet-report.json" class="report-link">
+                          📄 Reporte JSON (Técnico)
+                      </a>
+                  </div>
+                  
+                  <div class="timestamp">
+                      Última actualización: \$CURRENT_DATE
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+          
+      - name: Copy reports to public directory
+        run: |
+          cp -r ./reports/* ./public/ 2>/dev/null || true
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './public'
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DataDicGen.Domain\DataDicGen.Domain.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    
+    <!-- Propiedades NuGet -->
+    <PackageId>Marant7.DataDicGen.Application</PackageId>
+    <Authors>marant7</Authors>
+    <Company>UPT</Company>
+    <Description>Capa de aplicación para el generador de diccionarios de datos</Description>
+    <PackageTags>datadictionary;application;dtos</PackageTags>
+    <RepositoryUrl>https://github.com/marant7/proyecto-si889-2025-i-u1-team_fm_fr_fv</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    
+    <!-- Propiedades de versión -->
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,40 @@
+# SonarCloud Analysis Exclusions
+
+# Build outputs
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/build/
+**/wwwroot/lib/
+
+# Test files
+**/*.Tests/
+**/TestResults/
+
+# Generated files
+**/Migrations/
+**/*.Designer.cs
+**/*.g.cs
+**/*.g.i.cs
+
+# Package files
+packages/
+**/*.nupkg
+
+# IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+*.cache
+
+# Frontend build artifacts
+**/coverage/
+**/*.min.js
+**/*.min.css
+
+# Terraform
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform/

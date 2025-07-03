@@ -1,0 +1,6 @@
+@DataDicGen.WebAPI_HostAddress = http://localhost:5175
+
+GET {{DataDicGen.WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  datadicgen-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: datadicgen-api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - datadicgen-network
+
+  # Opcional: Base de datos si la necesitas
+  # database:
+  #   image: postgres:15
+  #   container_name: datadicgen-db
+  #   environment:
+  #     POSTGRES_DB: datadicgen
+  #     POSTGRES_USER: datadicgen
+  #     POSTGRES_PASSWORD: your-password-here
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - datadicgen-network
+
+networks:
+  datadicgen-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

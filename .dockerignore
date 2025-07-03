@@ -1,0 +1,86 @@
+# Git
+.git
+.gitignore
+.gitattributes
+.gitmodules
+
+# Documentation
+README.md
+*.md
+LICENSE
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node.js (Frontend)
+**/node_modules/
+**/dist/
+**/build/
+**/.nuxt/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Package managers
+packages/
+*.nupkg
+
+# Test results
+TestResults/
+*.trx
+coverage/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+
+# GitHub workflows (no need in container)
+.github/
+
+# Media files (if not needed in container)
+media/

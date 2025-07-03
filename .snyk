@@ -1,0 +1,26 @@
+# Snyk Configuration
+version: v1.0.0
+
+# Language settings
+language-settings:
+  dotnet:
+    targetFramework: net8.0
+  javascript:
+    packageManager: npm
+
+# Exclude patterns
+exclude:
+  global:
+    - '**/bin/**'
+    - '**/obj/**'
+    - '**/node_modules/**'
+    - '**/dist/**'
+    - '**/build/**'
+    - '**/*.min.js'
+    - '**/wwwroot/lib/**'
+
+# Patch settings
+patch: {}
+
+# Ignore specific vulnerabilities (example - remove if not needed)
+ignore: {}
